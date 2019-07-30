@@ -3,7 +3,6 @@ from rlbot.messages.flat import GameTickPacket, FieldInfo
 
 from util.rlmath import *
 
-
 GRAVITY = Vec3(0, 0, -650)
 
 
@@ -29,7 +28,7 @@ class Ball:
 
 class Car:
     def __init__(self, index=-1, name="Unknown", team=0, pos=Vec3(), vel=Vec3(), ang_vel=Vec3(), rot=Mat33(), time=0.0):
-        self.id = index
+        self.index = index
         self.name = name
         self.team = team
         self.pos = pos
@@ -45,6 +44,25 @@ class Car:
         self.supersonic = False
 
         self.last_input = SimpleControllerState()
+
+        # Spike Rush stuff
+        self._ball_last_rel_positions = [Vec3(), Vec3(), Vec3()]
+        self._next_rel_pos_to_replace = 0
+        self.has_ball_spiked = False
+
+    def eval_spike_rush(self, ball_pos):
+        dist = norm(ball_pos - self.pos)
+        if dist > 160:
+            self.has_ball_spiked = False
+
+        rel_pos = dot(ball_pos - self.pos, self.rot)
+        self._ball_last_rel_positions[self._next_rel_pos_to_replace] = rel_pos
+        self._next_rel_pos_to_replace = (self._next_rel_pos_to_replace + 1) % 3
+
+        change = norm(self._ball_last_rel_positions[0] - self._ball_last_rel_positions[1]) + \
+                 norm(self._ball_last_rel_positions[1] - self._ball_last_rel_positions[2])
+
+        self.has_ball_spiked = change < 1 and dist < 200
 
     def forward(self) -> Vec3:
         return self.rot.col(0)
@@ -151,6 +169,8 @@ class GameInfo:
             car.boost = game_car.boost
             car.time = self.time
 
+            car.eval_spike_rush(self.ball.pos)
+
             # car.extrapolate(dt)
 
             if len(self.cars) <= i:
@@ -200,7 +220,7 @@ class GameInfo:
 
         dist = norm(car_to_pad)
 
-        dist_score = 1 - clip((abs(dist) / 2500)**2, 0, 1)
+        dist_score = 1 - clip((abs(dist) / 2500) ** 2, 0, 1)
         angle_score = 1 - clip((abs(angle) / 3), 0, 1)
 
         return dist_score * angle_score * (0.8, 1)[pad.is_big]
@@ -216,5 +236,5 @@ class GameInfo:
         return enemy, dist
 
 
-def is_near_wall(point: Vec3, offset: float=110) -> bool:
+def is_near_wall(point: Vec3, offset: float = 110) -> bool:
     return abs(point.x) > Field.WIDTH - offset or abs(point.y) > Field.LENGTH - offset  # TODO Add diagonal walls

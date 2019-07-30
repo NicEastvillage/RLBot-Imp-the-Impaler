@@ -9,3 +9,6 @@ class State:
 
     def exec(self, bot) -> SimpleControllerState:
         raise NotImplementedError
+
+    def adjust(self, bot):
+        pass

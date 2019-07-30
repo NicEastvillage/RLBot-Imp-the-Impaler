@@ -1,5 +1,5 @@
 import math
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from rlbot.agents.base_agent import SimpleControllerState
 
@@ -9,21 +9,27 @@ from util.vec import Vec3
 
 
 @dataclass
-class AtbaState(State):
+class GoToPointState(State):
+
+    target: Vec3 = Vec3()
+
     def exec(self, bot) -> SimpleControllerState:
-        ball_pos = bot.data.ball.pos
+
         car_pos = Vec3(bot.data.my_car.pos)
 
-        car_to_ball = ball_pos - car_pos
+        car_to_target = self.target - car_pos
         car_forward = bot.data.my_car.forward()
-        ang = self.find_correction(car_forward, car_to_ball)
+        ang = self.find_correction(car_forward, car_to_target)
 
-        turn = clip(ang + ang ** 3, -1, 1)
+        turn = -clip(ang + 3 * ang ** 3, -1, 1)
 
         return SimpleControllerState(
             throttle=1.0,
             steer=turn
         )
+
+    def adjust(self, bot):
+        pass
 
     @staticmethod
     def find_correction(current: Vec3, ideal: Vec3) -> float:
@@ -43,3 +49,9 @@ class AtbaState(State):
                 diff -= 2 * math.pi
 
         return diff
+
+
+@dataclass
+class AtbaState(GoToPointState):
+    def adjust(self, bot):
+        self.target = bot.data.ball.pos
