@@ -1,58 +1,70 @@
-import math
-
 from rlbot.agents.base_agent import BaseAgent, SimpleControllerState
 from rlbot.utils.structures.game_data_struct import GameTickPacket
 
-from util.orientation import Orientation
-from util.vec import Vec3
+from states.atba import AtbaState
+from util.rendering import draw_ball_path
+from util.rldata import GameInfo
 
 
 class ImpalerBot(BaseAgent):
 
+    def __init__(self, name, team, index):
+        super().__init__(name, team, index)
+        self.data = None
+        self.state = None
+        self.doing_kickoff = False
+
+        # self.drive = DriveController()
+
     def initialize_agent(self):
-        # This runs once before the bot starts up
-        self.controller_state = SimpleControllerState()
+        self.data = GameInfo(self.index, self.team)
 
     def get_output(self, packet: GameTickPacket) -> SimpleControllerState:
-        ball_location = Vec3(packet.game_ball.physics.location)
 
-        my_car = packet.game_cars[self.index]
-        car_location = Vec3(my_car.physics.location)
+        # Read packet
+        if not self.data.field_info_loaded:
+            self.data.read_field_info(self.get_field_info())
+            if not self.data.field_info_loaded:
+                return SimpleControllerState()
+        self.data.read_packet(packet)
 
-        car_to_ball = ball_location - car_location
+        # Check if match is over
+        if packet.game_info.is_match_ended:
+            return SimpleControllerState()   # FIXME Celebrate!
 
-        # Find the direction of our car using the Orientation class
-        car_orientation = Orientation(my_car.physics.rotation)
-        car_direction = car_orientation.forward
+        self.renderer.begin_rendering()
 
-        steer_correction_radians = find_correction(car_direction, car_to_ball)
+        # Check kickoff
+        if self.data.is_kickoff and not self.doing_kickoff:
+            self.state = AtbaState()   # TODO choose_kickoff_plan(self)
+            self.doing_kickoff = True
+            self.print("Hello world!")
 
-        if steer_correction_radians > 0:
-            # Positive radians in the unit circle is a turn to the left.
-            turn = -1.0  # Negative value for a turn to the left.
-        else:
-            turn = 1.0
+        # Execute logic
+        if self.state is None or self.state.done:
+            # There is no state, find new one
+            self.state = AtbaState()
+            self.doing_kickoff = False
 
-        self.controller_state.throttle = 1.0
-        self.controller_state.steer = turn
+        ctrl = self.state.exec(self)
 
-        return self.controller_state
+        # Rendering
+        draw_ball_path(self, 4, 5)
+        car_pos = self.data.my_car.pos
+        self.renderer.draw_string_3d(car_pos, 1, 1, self.state.__class__.__name__, self.renderer.team_color(alt_color=True))
+        self.renderer.end_rendering()
 
+        # Save some stuff for next frame
+        self.feedback(ctrl)
 
-def find_correction(current: Vec3, ideal: Vec3) -> float:
-    # Finds the angle from current to ideal vector in the xy-plane. Angle will be between -pi and +pi.
+        return ctrl
 
-    # The in-game axes are left handed, so use -x
-    current_in_radians = math.atan2(current.y, -current.x)
-    ideal_in_radians = math.atan2(ideal.y, -ideal.x)
+    def print(self, s):
+        team_name = "[BLUE]" if self.team == 0 else "[ORANGE]"
+        print("Imp", self.index, team_name, ":", s)
 
-    diff = ideal_in_radians - current_in_radians
-
-    # Make sure that diff is between -pi and +pi.
-    if abs(diff) > math.pi:
-        if diff < 0:
-            diff += 2 * math.pi
-        else:
-            diff -= 2 * math.pi
-
-    return diff
+    def feedback(self, ctrl):
+        self.data.my_car.last_input.roll = ctrl.roll
+        self.data.my_car.last_input.pitch = ctrl.pitch
+        self.data.my_car.last_input.yaw = ctrl.yaw
+        self.data.my_car.last_input.boost = ctrl.boost
