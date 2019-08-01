@@ -3,6 +3,7 @@ import random
 from rlbot.agents.base_agent import BaseAgent, SimpleControllerState
 from rlbot.utils.structures.game_data_struct import GameTickPacket
 
+from movement import celebrate
 from states.atba import AtbaState, GoToPointState
 from util.rendering import draw_ball_path, Vec3
 from util.rldata import GameInfo
@@ -14,6 +15,7 @@ class ImpalerBot(BaseAgent):
         super().__init__(name, team, index)
         self.data = None
         self.state = None
+        self.maneuver = None
         self.doing_kickoff = False
 
         # self.drive = DriveController()
@@ -32,7 +34,7 @@ class ImpalerBot(BaseAgent):
 
         # Check if match is over
         if packet.game_info.is_match_ended:
-            return SimpleControllerState()   # FIXME Celebrate!
+            return celebrate(self)
 
         self.renderer.begin_rendering()
 
@@ -59,9 +61,19 @@ class ImpalerBot(BaseAgent):
             self.doing_kickoff = True
             self.greet()
 
-        # Car who is spiking the ball has changed. Let current state know
-        if self.data.car_spiking_changed and self.state is not None:
-            self.state.car_spiking_changed(self)
+        # Car who is spiking the ball has changed. Let current state and maneuver know
+        if self.data.car_spiking_changed:
+            if self.state is not None:
+                self.state.car_spiking_changed(self)
+            if self.maneuver is not None:
+                self.maneuver.car_spiking_changed(self)
+
+        # Maneuvers have first priority. If we are not in the middle of a maneuver, execute current state instead
+        if self.maneuver is not None:
+            if self.maneuver.done:
+                self.maneuver = None
+            else:
+                return self.maneuver.exec(self)
 
         # Choose state if we have none
         if self.state is None or self.state.done:
@@ -80,7 +92,6 @@ class ImpalerBot(BaseAgent):
             else:
                 self.state = AtbaState()
 
-        self.state.adjust(self)
         return self.state.exec(self)
 
     def print(self, s):

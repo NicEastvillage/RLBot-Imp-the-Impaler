@@ -1,7 +1,7 @@
 from rlbot.agents.base_agent import SimpleControllerState
 
 
-class State:
+class Maneuver:
     def __init__(self):
         self.done = False
 
@@ -9,4 +9,4 @@ class State:
         raise NotImplementedError
 
     def car_spiking_changed(self, bot):
-        self.done = True
+        pass

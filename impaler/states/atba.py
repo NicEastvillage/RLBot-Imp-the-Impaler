@@ -1,5 +1,4 @@
 import math
-from dataclasses import dataclass, field
 
 from rlbot.agents.base_agent import SimpleControllerState
 
@@ -50,5 +49,6 @@ class GoToPointState(State):
 
 
 class AtbaState(GoToPointState):
-    def adjust(self, bot):
+    def exec(self, bot) -> SimpleControllerState:
         self.target = bot.data.ball.pos
+        return super().exec(bot)
