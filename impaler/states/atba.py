@@ -8,10 +8,11 @@ from util.rlmath import clip
 from util.vec import Vec3
 
 
-@dataclass
 class GoToPointState(State):
 
-    target: Vec3 = Vec3()
+    def __init__(self, target: Vec3=Vec3()):
+        super().__init__()
+        self.target = target
 
     def exec(self, bot) -> SimpleControllerState:
 
@@ -27,9 +28,6 @@ class GoToPointState(State):
             throttle=1.0,
             steer=turn
         )
-
-    def adjust(self, bot):
-        pass
 
     @staticmethod
     def find_correction(current: Vec3, ideal: Vec3) -> float:
@@ -51,7 +49,6 @@ class GoToPointState(State):
         return diff
 
 
-@dataclass
 class AtbaState(GoToPointState):
     def adjust(self, bot):
         self.target = bot.data.ball.pos

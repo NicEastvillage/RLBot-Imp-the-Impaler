@@ -36,37 +36,52 @@ class ImpalerBot(BaseAgent):
 
         self.renderer.begin_rendering()
 
-        # Check kickoff
-        if self.data.is_kickoff and not self.doing_kickoff:
-            self.state = AtbaState()   # TODO choose_kickoff_plan(self)
-            self.doing_kickoff = True
-            self.greet()
+        # This is where the logic happens
+        ctrl = self.use_brain()
 
-        # Execute logic
-        if self.state is None or self.state.done:
-            # There is no state, find new one
-            self.doing_kickoff = False
-            self.state = AtbaState()
-
-        if self.data.my_car.has_ball_spiked:
-            self.state = GoToPointState(target=Vec3(y=-5250 * self.data.team_sign))
-        else:
-            self.state = AtbaState()
-
-        self.state.adjust(self)
-        ctrl = self.state.exec(self)
-
-        # Rendering
+        # Additional rendering
         draw_ball_path(self, 4, 5)
         car_pos = self.data.my_car.pos
         self.renderer.draw_string_3d(car_pos, 1, 1, self.state.__class__.__name__, self.renderer.team_color(alt_color=True))
-        self.renderer.draw_string_3d(car_pos + Vec3(z=30), 1, 1, str(self.data.my_car.has_ball_spiked), self.renderer.team_color(alt_color=True))
+        if self.data.car_spiking_ball is not None:
+            self.renderer.draw_rect_3d(self.data.car_spiking_ball.pos + Vec3(z=20), 30, 30, True, self.renderer.purple())
         self.renderer.end_rendering()
 
         # Save some stuff for next frame
         self.feedback(ctrl)
 
         return ctrl
+
+    def use_brain(self) -> SimpleControllerState:
+        # Check kickoff
+        if self.data.is_kickoff and not self.doing_kickoff:
+            self.state = AtbaState()  # TODO choose_kickoff_plan(self)
+            self.doing_kickoff = True
+            self.greet()
+
+        # Car who is spiking the ball has changed. Let current state know
+        if self.data.car_spiking_changed and self.state is not None:
+            self.state.car_spiking_changed(self)
+
+        # Choose state if we have none
+        if self.state is None or self.state.done:
+            self.doing_kickoff = False
+
+            # Pick state based on who is currently spiking the ball
+            if self.data.car_spiking_ball is None:
+                self.state = AtbaState()
+
+            elif self.data.car_spiking_ball == self.data.my_car:
+                self.state = GoToPointState(target=Vec3(y=-5250 * self.data.team_sign))
+
+            elif self.data.car_spiking_ball in self.data.teammates:
+                self.state = AtbaState()
+
+            else:
+                self.state = AtbaState()
+
+        self.state.adjust(self)
+        return self.state.exec(self)
 
     def print(self, s):
         team_name = "[BLUE]" if self.team == 0 else "[ORANGE]"
@@ -79,7 +94,7 @@ class ImpalerBot(BaseAgent):
             "ARHG, OKAY THEN.",
             "Hehehe, this will be fun.",
             "For the master!",
-            "You know how I got this name?",
+            "Do you know how I got this name?",
             "As you wish, master.",
             "Huh, GAAAAHRH.",
             "What? It's just spikes.",

@@ -115,6 +115,11 @@ class GameInfo:
 
         self.field_info_loaded = False
 
+        # Spike Rush stuff
+        self.car_spiking_ball = None
+        self.prev_car_spiking_ball = None
+        self.car_spiking_changed = False
+
     def read_field_info(self, field_info: FieldInfo):
         if field_info is None or field_info.num_boosts == 0:
             return
@@ -169,8 +174,6 @@ class GameInfo:
             car.boost = game_car.boost
             car.time = self.time
 
-            car.eval_spike_rush(self.ball.pos)
-
             # car.extrapolate(dt)
 
             if len(self.cars) <= i:
@@ -206,6 +209,15 @@ class GameInfo:
                 self.convenient_boost_pad = pad
 
         # self.time += dt
+
+        # Spike Rush stuff
+        self.prev_car_spiking_ball = self.car_spiking_ball
+        self.car_spiking_ball = None
+        for car in self.cars:
+            car.eval_spike_rush(self.ball.pos)
+            if car.has_ball_spiked:
+                self.car_spiking_ball = car
+        self.car_spiking_changed = self.prev_car_spiking_ball != self.car_spiking_ball
 
     def get_boost_pad_convenience_score(self, pad):
         if not pad.is_active:
