@@ -79,7 +79,7 @@ class BoostPad:
         self.index = index
         self.pos = pos
         self.is_active = is_active
-        self.timer = timer
+        self.timer = timer   # How long till active
         self.is_big = is_big
 
 
@@ -130,7 +130,12 @@ class GameInfo:
         for i in range(field_info.num_boosts):
             pad = field_info.boost_pads[i]
             pos = Vec3(pad.location)
-            self.boost_pads.append(BoostPad(i, pos, pad.is_full_boost, True, 0.0))
+            pad = BoostPad(i, pos, pad.is_full_boost, True, 0.0)
+            self.boost_pads.append(pad)
+            if pad.is_big:
+                self.big_boost_pads.append(pad)
+            else:
+                self.small_boost_pads.append(pad)
 
         self.convenient_boost_pad = self.boost_pads[0]
         self.convenient_boost_pad_score = 0

@@ -7,6 +7,7 @@ from rlbot.utils.structures.game_data_struct import GameTickPacket
 from maneuvers.maneuver import Maneuver
 from movement import celebrate, DriveController
 from states.atba import AtbaState, GoToPointState
+from states.collectboost import CollectClosestBoostState, filter_pads
 from states.fallback import FallBackState
 from states.kickoff import choose_kickoff_state
 from states.state import State
@@ -89,10 +90,13 @@ class ImpalerBot(BaseAgent):
                 self.state = AtbaState(target_vel=1900, boost_min=25)
 
             elif self.data.car_spiking_ball == self.data.my_car:
-                self.state = GoToPointState(target=Vec3(y=-5500 * self.data.team_sign), can_dodge=False)
+                self.state = GoToPointState(target=Vec3(y=-5600 * self.data.team_sign), can_dodge=False)
 
             elif self.data.car_spiking_ball in self.data.teammates:
-                self.state = FallBackState(self)
+                if self.data.my_car.boost < 10:
+                    self.state = CollectClosestBoostState(self, filter_pads(self, self.data.big_boost_pads, enemy_side=False))
+                else:
+                    self.state = FallBackState(self)
 
             else:
                 self.state = AtbaState(target_vel=2300, boost_min=0)

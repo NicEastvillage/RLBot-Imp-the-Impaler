@@ -1,8 +1,10 @@
+from rlbot.agents.base_agent import SimpleControllerState
+
 from states.state import State
 from util.rlmath import *
 
 
-def choose_kickoff_state(bot):
+def choose_kickoff_state(bot) -> State:
     # Do we have teammates? If no -> always go for kickoff
     if len(bot.data.teammates) == 0:
         return KickoffState()
@@ -85,7 +87,7 @@ def index_of_teammate_at_kickoff_spawn(bot, loc):
 
 
 class KickoffState(State):
-    def exec(self, bot):
+    def exec(self, bot) -> SimpleControllerState:
         DODGE_DIST = 250
         MIDDLE_OFFSET = 430
 
@@ -135,13 +137,13 @@ class SecondManSlowCornerKickoffState(State):
         self.target_loc = Vec3(0, ts * 400, 0)
         self.target_dir = Vec3(0, -ts, 0)
 
-    def exec(self, bot):
+    def exec(self, bot) -> SimpleControllerState:
         car = bot.data.my_car
 
         self.done = norm(car.pos) < 1000  # End when getting close to ball (approx at boost pad)
 
         curve_point = curve_from_arrival_dir(car.pos, self.target_loc, self.target_dir)
-        return bot.drive.go_towards_point(bot, curve_point, target_vel=1300, slide=True, boost_min=0,
+        return bot.drive.go_towards_point(bot, curve_point, target_vel=1210, slide=True, boost_min=0,
                                                   can_keep_speed=False)
 
 
@@ -150,7 +152,7 @@ class CollectSpecificBoostState(State):
         super().__init__()
         self.boost_pad_pos = pad_pos
 
-    def exec(self, bot):
+    def exec(self, bot) -> SimpleControllerState:
         car = bot.data.my_car
 
         car_to_pad = self.boost_pad_pos - car.pos
