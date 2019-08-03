@@ -1,10 +1,13 @@
 import random
+from typing import Optional
 
 from rlbot.agents.base_agent import BaseAgent, SimpleControllerState
 from rlbot.utils.structures.game_data_struct import GameTickPacket
 
-from movement import celebrate
+from maneuvers.maneuver import Maneuver
+from movement import celebrate, DriveController
 from states.atba import AtbaState, GoToPointState
+from states.state import State
 from util.rendering import draw_ball_path, Vec3
 from util.rldata import GameInfo
 
@@ -13,12 +16,12 @@ class ImpalerBot(BaseAgent):
 
     def __init__(self, name, team, index):
         super().__init__(name, team, index)
-        self.data = None
-        self.state = None
-        self.maneuver = None
+        self.data: GameInfo = None
+        self.state: Optional[State] = None
+        self.maneuver: Optional[Maneuver] = None
         self.doing_kickoff = False
 
-        # self.drive = DriveController()
+        self.drive = DriveController()
 
     def initialize_agent(self):
         self.data = GameInfo(self.index, self.team)
@@ -57,7 +60,7 @@ class ImpalerBot(BaseAgent):
     def use_brain(self) -> SimpleControllerState:
         # Check kickoff
         if self.data.is_kickoff and not self.doing_kickoff:
-            self.state = AtbaState()  # TODO choose_kickoff_plan(self)
+            self.state = AtbaState(boost_min=True)  # TODO choose_kickoff_plan(self)
             self.doing_kickoff = True
             self.greet()
 
@@ -81,16 +84,16 @@ class ImpalerBot(BaseAgent):
 
             # Pick state based on who is currently spiking the ball
             if self.data.car_spiking_ball is None:
-                self.state = AtbaState()
+                self.state = AtbaState(target_vel=1900, boost_min=25)
 
             elif self.data.car_spiking_ball == self.data.my_car:
-                self.state = GoToPointState(target=Vec3(y=-5250 * self.data.team_sign))
+                self.state = GoToPointState(target=Vec3(y=-5500 * self.data.team_sign), can_dodge=False)
 
             elif self.data.car_spiking_ball in self.data.teammates:
                 self.state = AtbaState()
 
             else:
-                self.state = AtbaState()
+                self.state = AtbaState(target_vel=2300, boost_min=0)
 
         return self.state.exec(self)
 

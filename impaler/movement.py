@@ -23,26 +23,25 @@ class DriveController:
         if self.dodge is None:
             self.dodge = DodgeManeuver(self.last_point)
 
-    def go_towards_point(self, bot, point: Vec3, target_vel=1430, slide=False, boost=False, can_keep_speed=True, can_dodge=True, wall_offset_allowed=110) -> SimpleControllerState:
+    def go_towards_point(self, bot, point: Vec3, target_vel=1430, slide=False, boost_min=101, can_keep_speed=True, can_dodge=True, wall_offset_allowed=110) -> SimpleControllerState:
         REQUIRED_ANG_FOR_SLIDE = 1.65
         REQUIRED_VELF_FOR_DODGE = 1100
 
-        car = bot.info.my_car
+        car = bot.data.my_car
 
         # Dodge is finished
-        if self.dodge is not None and self.dodge.finished:
+        if self.dodge is not None and self.dodge.done:
             self.dodge = None
-            self.last_dodge_end_time = bot.info.time
+            self.last_dodge_end_time = bot.data.time
 
         # Continue dodge
         if self.dodge is not None:
             self.dodge.target = point
-            self.dodge.execute(bot)
-            return self.dodge.controls
+            return self.dodge.exec(bot)
 
         # Begin recovery
         if not car.on_ground:
-            bot.plan = RecoveryManeuver()
+            bot.maneuver = RecoveryManeuver(bot)
             return self.controls
 
         # Get down from wall by choosing a point close to ground
@@ -68,7 +67,7 @@ class DriveController:
 
         # Start dodge
         if can_dodge and abs(angle) <= 0.02 and vel_towards_point > REQUIRED_VELF_FOR_DODGE\
-                and dist > vel_towards_point + 500 + 700 and bot.info.time > self.last_dodge_end_time + self.dodge_cooldown:
+                and dist > vel_towards_point + 500 + 700 and bot.data.time > self.last_dodge_end_time + self.dodge_cooldown:
             self.dodge = DodgeManeuver(point)
 
         # Is in turn radius deadzone?
@@ -77,7 +76,7 @@ class DriveController:
         tr_center_local = Vec3(0, tr * tr_side, 0)
         point_is_in_turn_radius_deadzone = norm(point_local - tr_center_local) < tr
         # Draw turn radius deadzone
-        if car.on_ground and bot.do_rendering:
+        if car.on_ground:
             tr_center_world = car.pos + dot(car.rot, tr_center_local)
             tr_center_world_2 = car.pos + dot(car.rot, -1 * tr_center_local)
             rendering.draw_circle(bot, tr_center_world, car.up(), tr, 22)
@@ -117,7 +116,7 @@ class DriveController:
             # Find appropriate throttle/boost
             if vel_towards_point < target_vel:
                 self.controls.throttle = 1
-                if boost and vel_towards_point + 25 < target_vel and target_vel > 1400 \
+                if boost_min < car.boost and vel_towards_point + 25 < target_vel and target_vel > 1400 \
                         and not self.controls.handbrake and is_heading_towards(angle, dist):
                     self.controls.boost = True
                 else:
@@ -136,7 +135,7 @@ class DriveController:
         return self.controls
 
     def avoid_goal_post(self, bot, point):
-        car = bot.info.my_car
+        car = bot.data.my_car
         car_to_point = point - car.pos
 
         # Car is not in goal, not adjustment needed
@@ -158,27 +157,8 @@ class DriveController:
             # Adjustment is needed
             point.x = clip(point.x, -goalx, goalx)
             point.y = clip(point.y, -goaly, goaly)
-            if bot.do_rendering:
-                bot.renderer.draw_line_3d(car.pos, point, bot.renderer.green())
 
-    def go_home(self, bot):
-        car = bot.info.my_car
-        home = bot.info.own_goal
-        target = home
-
-        closest_enemy, enemy_dist = bot.info.closest_enemy(bot.info.ball.pos)
-
-        car_to_home = home - car.pos
-        dist = norm(car_to_home)
-        vel_f_home = proj_onto_size(car.vel, car_to_home)
-
-        if vel_f_home * 2 > dist:
-            target = bot.info.ball.pos
-
-        boost = dist > 1500 or enemy_dist < dist
-        dodge = dist > 1500 or enemy_dist < dist
-
-        return self.go_towards_point(bot, target, 2300, True, boost=boost, can_dodge=dodge)
+            bot.renderer.draw_line_3d(car.pos, point, bot.renderer.green())
 
 
 class AimCone:
@@ -249,12 +229,11 @@ class AimCone:
             goto.x = clip(goto.x, -Field.WIDTH / 2, Field.WIDTH / 2)
             goto.y = clip(goto.y, -Field.LENGTH / 2, Field.LENGTH / 2)
 
-            if bot.do_rendering:
-                bot.renderer.draw_line_3d(car_pos, goto, bot.renderer.create_color(255, 150, 150, 150))
-                bot.renderer.draw_line_3d(point, goto, bot.renderer.create_color(255, 150, 150, 150))
+            bot.renderer.draw_line_3d(car_pos, goto, bot.renderer.create_color(255, 150, 150, 150))
+            bot.renderer.draw_line_3d(point, goto, bot.renderer.create_color(255, 150, 150, 150))
 
-                # Bezier
-                rendering.draw_bezier(bot, [car_pos, goto, point])
+            # Bezier
+            rendering.draw_bezier(bot, [car_pos, goto, point])
 
             return goto, 0.5
         else:

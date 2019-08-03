@@ -8,25 +8,31 @@ from util.vec import Vec3
 
 
 class GoToPointState(State):
-
-    def __init__(self, target: Vec3=Vec3()):
+    def __init__(self,
+                 target: Vec3=Vec3(),
+                 target_vel: float=1430,
+                 allow_slide: bool=False,
+                 boost_min: int=101,
+                 can_keep_speed: bool=True,
+                 can_dodge: bool=True,
+                 wall_offset_allowed: float=110):
         super().__init__()
         self.target = target
+        self.target_vel = target_vel
+        self.allow_slide = allow_slide
+        self.boost_min = boost_min
+        self.can_keep_speed = can_keep_speed
+        self.can_dodge = can_dodge
+        self.wall_offset_allowed = wall_offset_allowed
 
     def exec(self, bot) -> SimpleControllerState:
-
-        car_pos = Vec3(bot.data.my_car.pos)
-
-        car_to_target = self.target - car_pos
-        car_forward = bot.data.my_car.forward()
-        ang = self.find_correction(car_forward, car_to_target)
-
-        turn = -clip(ang + 3 * ang ** 3, -1, 1)
-
-        return SimpleControllerState(
-            throttle=1.0,
-            steer=turn
-        )
+        return bot.drive.go_towards_point(bot, self.target,
+                                          target_vel=self.target_vel,
+                                          slide=self.allow_slide,
+                                          boost_min=self.boost_min,
+                                          can_keep_speed=self.can_keep_speed,
+                                          can_dodge=self.can_dodge,
+                                          wall_offset_allowed=self.wall_offset_allowed)
 
     @staticmethod
     def find_correction(current: Vec3, ideal: Vec3) -> float:

@@ -26,12 +26,12 @@ class DodgeManeuver(Maneuver):
         self._max_speed = 2000  # Don't boost if above this speed
         self._boost_ang_req = 0.25
 
-    def execute(self, bot):
+    def exec(self, bot) -> SimpleControllerState:
         ct = time.time() - self._start_time
         controls = SimpleControllerState()
         controls.throttle = 1
 
-        car = bot.info.my_car
+        car = bot.data.my_car
 
         # Target is allowed to be a function that takes bot as a parameter. Check what it is
         if callable(self.target):
