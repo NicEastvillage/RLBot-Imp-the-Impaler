@@ -1,0 +1,164 @@
+from states.state import State
+from util.rlmath import *
+
+
+def choose_kickoff_state(bot):
+    # Do we have teammates? If no -> always go for kickoff
+    if len(bot.data.teammates) == 0:
+        return KickoffState()
+
+    # Kickoff spawn locations (corners may vary from map to map)
+    ts = bot.data.team_sign
+    right_corner_loc = Vec3(-1970, ts * 2450, 0)  # actually left for orange
+    left_corner_loc = Vec3(1970, ts * 2450, 0)  # actually right for orange
+    back_right_loc = Vec3(-256, ts * 3840, 0)  # actually left for orange
+    back_left_loc = Vec3(256, ts * 3840, 0)  # actually right for orange
+    back_center_loc = Vec3(0, ts * 4608, 0)
+
+    boost_x = 3072
+    boost_y = ts * 4096
+
+    # Are we in the corner -> go for kickoff (If two bot's are in the corners, we assume lowest index goes for kickoff)
+    if is_my_kickoff_spawn(bot, right_corner_loc):
+        tm_index = index_of_teammate_at_kickoff_spawn(bot, left_corner_loc)
+        if 0 <= tm_index < bot.index:
+            return SecondManSlowCornerKickoffState(bot)
+        else:
+            return KickoffState()
+    if is_my_kickoff_spawn(bot, left_corner_loc):
+        tm_index = index_of_teammate_at_kickoff_spawn(bot, right_corner_loc)
+        if 0 <= tm_index < bot.index:
+            return SecondManSlowCornerKickoffState(bot)
+        else:
+            return KickoffState()
+
+    # Is a teammate in the corner -> collect boost
+    if 0 <= index_of_teammate_at_kickoff_spawn(bot, right_corner_loc) \
+            or 0 <= index_of_teammate_at_kickoff_spawn(bot, left_corner_loc):
+        if bot.data.my_car.pos.x > 10:
+            # go for left boost
+            return CollectSpecificBoostState(Vec3(boost_x, boost_y, 0))
+        if bot.data.my_car.pos.x < -10:
+            # go for right boost
+            return CollectSpecificBoostState(Vec3(-boost_x, boost_y, 0))
+        if 0 <= index_of_teammate_at_kickoff_spawn(bot, back_right_loc):
+            # go for left boost
+            return CollectSpecificBoostState(Vec3(boost_x, boost_y, 0))
+        else:
+            # go for right boost
+            return CollectSpecificBoostState(Vec3(-boost_x, boost_y, 0))
+
+    # No teammate in the corner
+    # Are we back right or left -> go for kickoff
+    if is_my_kickoff_spawn(bot, back_right_loc) \
+            or is_my_kickoff_spawn(bot, back_left_loc):
+        return KickoffState()
+
+    # No teammate in the corner
+    # Is a teammate back right or left -> collect boost
+    if 0 <= index_of_teammate_at_kickoff_spawn(bot, back_right_loc):
+        # go for left boost
+        return CollectSpecificBoostState(Vec3(boost_x, boost_y, 0))
+    elif 0 <= index_of_teammate_at_kickoff_spawn(bot, back_left_loc):
+        # go for right boost
+        return CollectSpecificBoostState(Vec3(-boost_x, boost_y, 0))
+
+    # We have no teammates
+    return KickoffState()
+
+
+def is_my_kickoff_spawn(bot, loc):
+    dist = norm(bot.data.my_car.pos - loc)
+    return dist < 150
+
+
+def index_of_teammate_at_kickoff_spawn(bot, loc):
+    """
+    Returns index of teammate at loc, or -1 if there is no teammate
+    """
+    # RLU Cars does not contain index, so we have to find that ourselves :(
+    for car in bot.data.teammates:
+        dist = norm(car.pos - loc)
+        if dist < 150:
+            return car.index
+    return -1
+
+
+class KickoffState(State):
+    def exec(self, bot):
+        DODGE_DIST = 250
+        MIDDLE_OFFSET = 430
+
+        # Since ball is at (0,0) we don't we a car_to_ball variable like we do so many other places
+        car = bot.data.my_car
+        dist = norm(car.pos)
+        vel_p = -proj_onto_size(car.vel, car.pos)
+
+        point = Vec3(0, bot.data.team_sign * (dist / 2.6 - MIDDLE_OFFSET), 0)
+        speed = 2300
+        opp_dist = norm(bot.data.opponents[0].pos)
+        opp_does_kick = opp_dist < dist + 600
+
+        # Opponent is not going for kickoff, so we slow down a bit
+        if not opp_does_kick:
+            speed = 2210
+            point = Vec3(0, bot.data.team_sign * (dist / 2.05 - MIDDLE_OFFSET), 0)
+            point += Vec3(35 * sign(car.pos.x), 0, 0)
+
+        # Dodge when close to (0, 0) - but only if the opponent also goes for kickoff.
+        # The dodge itself should happen in about 0.3 seconds
+        if dist - DODGE_DIST < vel_p * 0.3 and opp_does_kick:
+            bot.drive.start_dodge()
+
+        # Make two dodges when spawning far back
+        elif dist > 3640 and vel_p > 1200 and not opp_does_kick:
+            bot.drive.start_dodge()
+
+        # Pickup boost when spawning back corner by driving a bit towards the middle boost pad first
+        elif abs(car.pos.x) > 230 and abs(car.pos.y) > 2880:
+            # The pads exact location is (0, 2816), but don't have to be exact
+            point.y = bot.data.team_sign * 2790
+
+        self.done = not bot.data.is_kickoff
+        bot.renderer.draw_line_3d(car.pos, point, bot.renderer.white())
+
+        return bot.drive.go_towards_point(bot, point, target_vel=speed, slide=False, boost_min=0,
+                                                  can_dodge=False, can_keep_speed=False)
+
+
+class SecondManSlowCornerKickoffState(State):
+    def __init__(self, bot):
+        super().__init__()
+
+        # These vectors will help us make the curve
+        ts = bot.data.team_sign
+        self.target_loc = Vec3(0, ts * 400, 0)
+        self.target_dir = Vec3(0, -ts, 0)
+
+    def exec(self, bot):
+        car = bot.data.my_car
+
+        self.done = norm(car.pos) < 1000  # End when getting close to ball (approx at boost pad)
+
+        curve_point = curve_from_arrival_dir(car.pos, self.target_loc, self.target_dir)
+        return bot.drive.go_towards_point(bot, curve_point, target_vel=1300, slide=True, boost_min=0,
+                                                  can_keep_speed=False)
+
+
+class CollectSpecificBoostState(State):
+    def __init__(self, pad_pos):
+        super().__init__()
+        self.boost_pad_pos = pad_pos
+
+    def exec(self, bot):
+        car = bot.data.my_car
+
+        car_to_pad = self.boost_pad_pos - car.pos
+        vel = proj_onto_size(car.vel, car_to_pad)
+        dist = norm(car_to_pad)
+        if dist < vel * 0.3:
+            self.done = True
+
+        # Drive towards the pad
+        return bot.drive.go_towards_point(bot, self.boost_pad_pos, target_vel=2300, boost_min=0,
+                                                  can_keep_speed=True)

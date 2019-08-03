@@ -7,6 +7,7 @@ from rlbot.utils.structures.game_data_struct import GameTickPacket
 from maneuvers.maneuver import Maneuver
 from movement import celebrate, DriveController
 from states.atba import AtbaState, GoToPointState
+from states.kickoff import choose_kickoff_state
 from states.state import State
 from util.rendering import draw_ball_path, Vec3
 from util.rldata import GameInfo
@@ -60,7 +61,7 @@ class ImpalerBot(BaseAgent):
     def use_brain(self) -> SimpleControllerState:
         # Check kickoff
         if self.data.is_kickoff and not self.doing_kickoff:
-            self.state = AtbaState(boost_min=True)  # TODO choose_kickoff_plan(self)
+            self.state = choose_kickoff_state(self)
             self.doing_kickoff = True
             self.greet()
 
