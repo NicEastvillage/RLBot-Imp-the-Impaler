@@ -9,6 +9,7 @@ from movement import celebrate, DriveController
 from states.atba import AtbaState, GoToPointState
 from states.collectboost import CollectClosestBoostState, filter_pads
 from states.fallback import FallBackState
+from states.i_have_ball import IHaveBallState
 from states.kickoff import choose_kickoff_state
 from states.state import State
 from util.rendering import draw_ball_path, Vec3
@@ -90,7 +91,7 @@ class ImpalerBot(BaseAgent):
                 self.state = AtbaState(target_vel=1900, boost_min=25)
 
             elif self.data.car_spiking_ball == self.data.my_car:
-                self.state = GoToPointState(target=Vec3(y=-5600 * self.data.team_sign), can_dodge=False)
+                self.state = IHaveBallState(self)
 
             elif self.data.car_spiking_ball in self.data.teammates:
                 if self.data.my_car.boost < 10:

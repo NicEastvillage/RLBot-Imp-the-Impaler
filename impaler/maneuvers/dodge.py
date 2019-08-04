@@ -8,7 +8,14 @@ from util.rlmath import *
 
 
 class DodgeManeuver(Maneuver):
-    def __init__(self, target=None, boost=False):
+    def __init__(self,
+                 target=None,
+                 boost=False,
+                 t_first_jump=0.10,
+                 t_first_wait=0.03,
+                 t_aim=0.05,
+                 t_second_jump=0.28,
+                 t_second_wait=0.14):
         super().__init__()
         
         self.target = target
@@ -16,11 +23,11 @@ class DodgeManeuver(Maneuver):
         self._start_time = time.time()
         self._almost_finished = False
 
-        self._t_first_unjump = 0.10
-        self._t_aim = 0.13
-        self._t_second_jump = 0.18
-        self._t_second_unjump = 0.46
-        self._t_finishing = 1.0  # After this, fix orientation until lands on ground
+        self._t_first_unjump = t_first_jump
+        self._t_aim = self._t_first_unjump + t_first_wait
+        self._t_second_jump = self._t_aim + t_aim
+        self._t_second_unjump = self._t_second_jump + t_second_jump
+        self._t_finishing = self._t_second_unjump + t_second_wait   # After this, fix orientation until lands on ground
 
         self._t_steady_again = 0.25  # Time on ground before steady and ready again
         self._max_speed = 2000  # Don't boost if above this speed
