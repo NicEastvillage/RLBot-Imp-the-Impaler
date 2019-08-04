@@ -24,9 +24,6 @@ class CollectClosestBoostState(GoToPointState):
                 self.closest_pad = pad
                 shortest_dist = dist
 
-            if not pad.is_active:
-                bot.print(f"Pad active in {pad.timer} at {pad.pos}")
-
     def exec(self, bot) -> SimpleControllerState:
         car = bot.data.my_car
 

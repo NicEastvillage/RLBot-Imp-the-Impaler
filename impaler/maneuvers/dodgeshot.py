@@ -9,9 +9,13 @@ from util.vec import Vec3, dot, normalize
 
 class DodgeShotManeuver(DodgeManeuver):
     def __init__(self, bot):
-        super().__init__(Vec3(y=-5440 * bot.data.team_sign), t_first_jump=0.25, t_first_wait=0.10)
+        super().__init__(Vec3(y=-5440 * bot.data.team_sign), t_first_jump=0.25, t_first_wait=0.08)
 
-        self._t_release_ball = self._t_second_jump + 0.06
+        car = bot.data.my_car
+        if not car.has_ball_spiked:
+            self.done = True
+
+        self._t_release_ball = self._t_second_jump + 0.05
 
     def exec(self, bot) -> SimpleControllerState:
         ctrl = super().exec(bot)

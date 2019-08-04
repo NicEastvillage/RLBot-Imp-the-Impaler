@@ -119,7 +119,10 @@ class ImpalerBot(BaseAgent):
             "As you wish, master.",
             "Huh, GAAAAHRH.",
             "What? It's just spikes.",
-            "It's not a phase, mom!"
+            "It's not a phase, mom!",
+            "Say hi to Diablo from me.",
+            "Thihihihiiiimuhahaha",
+            "One, two, three, IMPALE!"
         ]))
 
     def feedback(self, ctrl):

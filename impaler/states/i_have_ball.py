@@ -20,7 +20,7 @@ class IHaveBallState(State):
 
         enemy, enemy_dist = bot.data.closest_enemy(bot.data.ball.pos)
 
-        if car.on_ground and enemy_dist < 800 and vel_prj_to_goal > 1230 and norm(target_goal - car.pos) > 1500:
+        if car.on_ground and enemy_dist < 1100 and vel_prj_to_goal > 1230 and norm(target_goal - car.pos) > 1500:
             bot.maneuver = DodgeShotManeuver(bot)
 
         # Default to just going straight
