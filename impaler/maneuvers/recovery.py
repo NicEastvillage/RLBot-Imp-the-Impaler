@@ -30,7 +30,7 @@ class RecoveryManeuver(AerialTurnManeuver):
         return Mat33(car.rot)
         """
 
-        forward = normalize(xy(car.forward()))
+        forward = normalize(xy(car.vel))
         up = Vec3(z=1)
         left = cross(up, forward)
 

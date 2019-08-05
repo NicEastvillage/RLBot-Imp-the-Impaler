@@ -6,9 +6,10 @@ from rlbot.utils.structures.game_data_struct import GameTickPacket
 
 from maneuvers.maneuver import Maneuver
 from movement import celebrate, DriveController
-from states.atba import AtbaState, GoToPointState
+from states.atba import AtbaState
 from states.collectboost import CollectClosestBoostState, filter_pads
 from states.fallback import FallBackState
+from states.grab_ball import GrabBallState
 from states.i_have_ball import IHaveBallState
 from states.kickoff import choose_kickoff_state
 from states.state import State
@@ -88,7 +89,7 @@ class ImpalerBot(BaseAgent):
 
             # Pick state based on who is currently spiking the ball
             if self.data.car_spiking_ball is None:
-                self.state = AtbaState(target_vel=1900, boost_min=25)
+                self.state = GrabBallState()
 
             elif self.data.car_spiking_ball == self.data.my_car:
                 self.state = IHaveBallState(self)

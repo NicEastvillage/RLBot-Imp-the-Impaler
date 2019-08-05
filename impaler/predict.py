@@ -69,7 +69,7 @@ def next_ball_landing(bot, obj=None, size=Ball.RADIUS) -> UncertainEvent:
     """ Returns a UncertainEvent describing the next ball landing. If obj==None the current ball is used, otherwise the
     given obj is used. """
     if obj is None:
-        obj = bot.info.ball
+        obj = bot.data.ball
         landing = arrival_at_height(obj, size, "DOWN")
         t = landing.time if landing.happens else 0
         moved_obj = ball_predict(bot, t)
@@ -128,7 +128,7 @@ def time_till_reach_ball(car, ball):
 
 
 def will_ball_hit_goal(bot):
-    ball = bot.info.ball
+    ball = bot.data.ball
     if ball.vel.y == 0:
         return UncertainEvent(False, 1e306)
 
