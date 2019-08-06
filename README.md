@@ -9,5 +9,4 @@ This bot is a Rocket League bot made with [RLBot](rlbot.org) for offline play. W
    - Select "Add Python to PATH"
    - Make sure pip is included in the installation
 1. Download or clone this repository
-1. In the files from the previous step, find and double click on run-gui.bat
-1. Click the 'Run' button
+1. Run `run.bat`. Rocket League will start automatically
